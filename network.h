@@ -12,6 +12,9 @@ int random(int a, int b) {
 	return a + rand() % (b - a + 1);
 }
 
+double randomDouble(double a, double b) {
+	return a + (double)rand() / RAND_MAX * (b - a);
+}
 
 class Network {
 public:
@@ -132,17 +135,6 @@ public:
 		}
 		return best;
 	}
-
-	//// weights unrolled
-	//double* w1;             // 4x8 = 32
-	//double* w2;             // 8x6 = 48
-	//double* w3;             // 6x5 = 30
-
-	//// biases
-	//double* b1;             // 8
-	//double* b2;             // 6
-	//double* b3;             // 5
-
 
 	void initWeights() {
 		for (int i = 0; i < 32; i++) w1[i] = random(-1.0, 1.0);
