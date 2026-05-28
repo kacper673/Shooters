@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 
-#include "shooter.h"
+#include"colony.h"
 
 int height = 800;
 int width = 800;
@@ -11,7 +11,7 @@ int simulation_time = 10000;
 int epochs = 10;
 
 int main() {
-	Shooter one;
+	/*Shooter one;
 	Shooter two;
 
 	one.opponent = &two;
@@ -24,7 +24,10 @@ int main() {
 		one.makeMove(two.getShooterPos(), two.getBulletPos());
 		two.makeMove(one.getShooterPos(), one.getBulletPos());
 	}
-	std::cout << "Shooters hit each other\n";
+	std::cout << "Shooters hit each other\n";*/
+	srand(time(NULL));
+	Colony colony;
+	colony.runSimulationTerminal(2000, 1000);
 
 	return 0;
 }

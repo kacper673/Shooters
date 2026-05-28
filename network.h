@@ -137,12 +137,12 @@ public:
 	}
 
 	void initWeights() {
-		for (int i = 0; i < 32; i++) w1[i] = random(-1.0, 1.0);
-		for (int i = 0; i < 48; i++) w2[i] = random(-1.0, 1.0);
-		for (int i = 0; i < 30; i++) w3[i] = random(-1.0, 1.0);
-		for (int i = 0; i < 8; i++) b1[i] = random(-1.0, 1.0);
-		for (int i = 0; i < 6; i++) b2[i] = random(-1.0, 1.0);
-		for (int i = 0; i < 5; i++) b3[i] = random(-1.0, 1.0);
+		for (int i = 0; i < 32; i++) w1[i] = randomDouble(-0.1, 0.1);
+		for (int i = 0; i < 48; i++) w2[i] = randomDouble(-0.1, 0.1);
+		for (int i = 0; i < 30; i++) w3[i] = randomDouble(-0.1, 0.1);
+		for (int i = 0; i < 8; i++) b1[i] = randomDouble(-0.1, 0.1);
+		for (int i = 0; i < 6; i++) b2[i] = randomDouble(-0.1, 0.1);
+		for (int i = 0; i < 5; i++) b3[i] = randomDouble(-0.1, 0.1);
 	}
 
 
@@ -151,6 +151,20 @@ public:
 			std::cout << output[i] << " ";
 		}
 		std::cout << "\n";
+	}
+
+	Network& operator=(const Network& other) {
+		if (this == &other) return *this;
+
+		for (int i = 0; i < 32; i++) w1[i] = other.w1[i];
+		for (int i = 0; i < 48; i++) w2[i] = other.w2[i];
+		for (int i = 0; i < 30; i++) w3[i] = other.w3[i];
+
+		for (int i = 0; i < 8; i++) b1[i] = other.b1[i];
+		for (int i = 0; i < 6; i++) b2[i] = other.b2[i];
+		for (int i = 0; i < 5; i++) b3[i] = other.b3[i];
+
+		return *this;
 	}
 	
 };
