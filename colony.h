@@ -1,14 +1,32 @@
 #pragma once
 #include "shooter.h"
 
+#include <algorithm>
 #include <fstream>
 
-const int COLONY_SIZE = 500; //total size of colony so COLONY_SIZE/2 pairs/alternative scenarios to learn
+#include "Windows.h"
+#include "mmsystem.h"
+
+
+
+#pragma comment(lib,"winmm.lib")
+
+const int COLONY_SIZE = 400; //total size of colony so COLONY_SIZE/2 pairs/alternative scenarios to learn
+
+struct Stats {
+	Stats(double m_, double q1_, double q3_, double s_) :median(m_), std_dev(s_), q1(q1_), q3(q3_) {};
+	double median;
+	double std_dev;
+	double q1;
+	double q3;
+};
 
 
 class Colony {
 public:
 	std::vector<Shooter*> colony;
+
+	std::vector<double> fitnesses;
 	std::vector <double> weights;
 	double avarage_fitness;
 	int actions_count[5] = {0,0,0,0,0};
@@ -56,10 +74,15 @@ public:
 	}
 
 	void assignWeights() {
+		fitnesses.clear();
+		weights.clear();
+
 		double fitnesses_sum = 0;
 
 		for (Shooter* s : colony) {
-			fitnesses_sum += s->fitness();
+			double fitness_ = s->fitness();
+			fitnesses_sum += fitness_;
+			fitnesses.push_back(fitness_);
 		}
 
 		for (Shooter* s : colony) {
@@ -124,7 +147,8 @@ public:
 		float progress = 0;
 		for (int i = 0; i < generations; i++) {
 			progress++;
-			if (i % 10 == 0) {
+			int step = generations / 100;
+			if (i % step == 0) {
 				std::cout << progress / generations * 100 << "%";
 			}
 			runGeneration(dt);
@@ -143,12 +167,13 @@ public:
 					actions_count[i] += s->actions_count[i];
 				}
 			}
-			exportToCSV("C:\\Users\\alber\\Desktop\\shooters\\fitness.csv",best->fitness_,avarage_fitness,worst->fitness_);
+			Stats stats = calculateStatistics();
+			exportToCSV("C:\\Users\\alber\\Desktop\\shooters\\fitness.csv",best->fitness_,avarage_fitness,worst->fitness_,stats.median,stats.q1,stats.q3, stats.std_dev);
 
 			resample();
 		}
 		exportToCSV("C:\\Users\\alber\\Desktop\\shooters\\actions_count.csv", actions_count, 5);
-
+		PlaySound(TEXT("C:\\Users\\alber\\Desktop\\shooters\\finish.wav"), NULL, SND_FILENAME | SND_SYNC);
 	}
 
 	void exportToCSV(const std::string& filename, double val1, double val2,double val3) {
@@ -164,8 +189,33 @@ public:
 		file << tab[size - 1] << "\n";
 	}
 
+	void exportToCSV(const std::string& filename,double val1,double val2, double val3, double val4, double val5, double val6, double val7) {
+		std::ofstream file(filename, std::ios::app);
+		file << val1 << "," << val2 << "," << val3 <<","<<val4<<","<< val5 << "," << val6 << "," << val7 << "\n";
+	}
+
 	void createNewCSV(const std::string& filename) {
 		std::ofstream file(filename, std::ios::trunc);
+	}
+
+	Stats calculateStatistics() {
+		std::sort(fitnesses.begin(), fitnesses.end());
+
+		double median = fitnesses[fitnesses.size() / 2];
+		double q1 = fitnesses[fitnesses.size() / 4];
+		double q3 = fitnesses[fitnesses.size() * 3 / 4];
+
+		double mean = avarage_fitness;
+		double sq_sum = 0;
+		for (double f : fitnesses) sq_sum += (f - mean) * (f - mean);
+		double std_dev = sqrt(sq_sum / fitnesses.size());
+
+		if (std::isnan(std_dev) || std_dev < 0) {
+			std::cout << "WARNING: std_dev invalid: " << std_dev << "\n";
+			std_dev = 0;
+		}
+
+		return Stats(median,q1,q3, std_dev);
 	}
 	
 };

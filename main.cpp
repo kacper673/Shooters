@@ -27,7 +27,7 @@ int main() {
 	std::cout << "Shooters hit each other\n";*/
 	srand(time(NULL));
 	Colony colony;
-	colony.runSimulationTerminal(2000, 1000);
+	colony.runSimulationTerminal(500, 1000);
 
 	return 0;
 }

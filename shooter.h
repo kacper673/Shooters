@@ -132,20 +132,39 @@ public:
 
 	}
 
-	double fitness() {
+	/*double fitness() {
 		double fitness_score = 0;
 
 		fitness_score += score * 100;
 		fitness_score -= (3 - health) * 80;
-		fitness_score -= actions_count[0]*2;
+		fitness_score -= actions_count[0];
 		fitness_score += (actions_count[1] + actions_count[2] + actions_count[3] + actions_count[4])/4;
+		if (killed_opponent == true) fitness_score += 800;
 
-		fitness_ = fitness_score;
+		fitness_ = fitness_score + 240;
 		return fitness_score + 240;
+	}*/
+
+	double fitness() {
+		int hits_dealt = score;         
+		int hits_taken = 3 - health;     
+
+		double f = 0;
+		f += hits_dealt * 100;           
+		f -= hits_taken * 100;           
+		if (killed_opponent) f += 300;   
+		if (health <= 0)     f -= 300;   
+
+		int shots = actions_count[0];
+		double accuracy = shots > 0 ? (double)score / shots : 0.0;
+		f += accuracy * 50;              
+		f += 650;
+		fitness_ = f;
+		return f;
 	}
 
 
-	void mutate(double mutation_rate = 0.05) {
+	void mutate(double mutation_rate = 0.1) {
 		for (int i = 0; i < 32; i++) if (random01() < mutation_rate) brain.w1[i] += randomDouble(-0.5, 0.5);
 		for (int i = 0; i < 48; i++) if (random01() < mutation_rate) brain.w2[i] += randomDouble(-0.5, 0.5);
 		for (int i = 0; i < 30; i++) if (random01() < mutation_rate) brain.w3[i] += randomDouble(-0.5, 0.5);
@@ -208,6 +227,7 @@ private:
 		if (perp_dist_sq < radius_sq) {
 			score++;
 			opponent->health--;
+			if (opponent->health <= 0 || score >= 3) killed_opponent = true;
 			return true;
 		}
 		return false;
