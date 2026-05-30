@@ -150,15 +150,19 @@ public:
 		int hits_taken = 3 - health;     
 
 		double f = 0;
-		f += hits_dealt * 100;           
+		f += hits_dealt * 400;           
 		f -= hits_taken * 100;           
-		if (killed_opponent) f += 300;   
+		if (killed_opponent) f += 800;   
 		if (health <= 0)     f -= 300;   
 
 		int shots = actions_count[0];
 		double accuracy = shots > 0 ? (double)score / shots : 0.0;
-		f += accuracy * 50;              
-		f += 650;
+
+		int misses = actions_count[0] - score;   
+		f -= misses;
+		f += accuracy * 300;              
+		f += 1500;
+		if (f < 0) f = 0;
 		fitness_ = f;
 		return f;
 	}

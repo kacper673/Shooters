@@ -11,7 +11,7 @@
 
 #pragma comment(lib,"winmm.lib")
 
-const int COLONY_SIZE = 400; //total size of colony so COLONY_SIZE/2 pairs/alternative scenarios to learn
+const int COLONY_SIZE = 500; //total size of colony so COLONY_SIZE/2 pairs/alternative scenarios to learn
 
 struct Stats {
 	Stats(double m_, double q1_, double q3_, double s_) :median(m_), std_dev(s_), q1(q1_), q3(q3_) {};
@@ -26,11 +26,17 @@ class Colony {
 public:
 	std::vector<Shooter*> colony;
 
+	bool fitness_calculated = false;
 	std::vector<double> fitnesses;
 	std::vector <double> weights;
 	double avarage_fitness;
+
 	int actions_count[5] = {0,0,0,0,0};
 
+	int elite_part;
+
+	int GENERATIONS = 0;
+	
 	Colony() {
 		for (int i = 0; i < COLONY_SIZE; i++) {
 			Shooter* s1 = new Shooter();
@@ -51,11 +57,25 @@ public:
 	Shooter* bestShooter() {
 		double score = 0;
 		Shooter* best = colony[0];
-		for (Shooter* s : colony) {
-			if (s->fitness() > score) {
-				score = s->fitness();
-				best = s;
+		if (fitness_calculated == true) {
+			for (Shooter* s : colony) {
+				double f = s->fitness_;
+				if (f > score) {
+					score = f;
+					best = s;
+				}
 			}
+		}
+		else {
+			for (Shooter* s : colony) {
+				double f = s->fitness();
+				s->fitness_ = f;
+				if (f > score) {
+					score = f;
+					best = s;
+				}
+			}
+			fitness_calculated = true;
 		}
 		return best;
 	}
@@ -64,14 +84,38 @@ public:
 		double score = 10000000000000;
 		Shooter* worst = colony[0];
 
-		for (Shooter* s : colony) {
-			if (s->fitness() < score) {
-				score = s->fitness();
-				worst = s;
+		if (fitness_calculated == true) {
+			for (Shooter* s : colony) {
+				if (s->fitness_ < score) {
+					score = s->fitness_;
+					worst = s;
+				}
 			}
+		}
+		else {
+			for (Shooter* s : colony) {
+				if (s->fitness() < score) {
+					score = s->fitness();
+					worst = s;
+				}
+			}
+			fitness_calculated = true;
 		}
 		return worst;
 	}
+	
+	void calculateFitness() {
+		fitnesses.clear();
+		double sum = 0;
+		for (Shooter* s : colony) {
+			fitnesses.push_back(s->fitness()); 
+			sum += s->fitness_;
+		}
+		fitness_calculated = true;
+		avarage_fitness = sum / colony.size();
+	}
+
+
 
 	void assignWeights() {
 		fitnesses.clear();
@@ -103,6 +147,74 @@ public:
 		}
 		return weights.size() - 1; // fallback
 	}
+
+	void sortTopN(int n) {
+		n = (std::min)(n, (int)colony.size());
+		std::partial_sort(colony.begin(), colony.begin() + n, colony.end(),
+			[](Shooter* a, Shooter* b) {
+				return a->fitness_ > b->fitness_;
+			});
+	}
+
+	std::vector<Shooter*> elitisSelection(float percent) {
+		elite_part;
+		if (!fitness_calculated) calculateFitness();
+
+		int size = colony.size();
+		std::vector<Shooter*> new_colony(size);
+
+		if (percent > 100) percent = 100;
+		if (percent < 0) percent = 0;
+		percent /= 100;
+		elite_part = size * percent;
+		if (elite_part % 2 != 0) elite_part += 1;
+
+		size -= elite_part;
+
+		sortTopN(elite_part);
+		for (int i = 0; i < elite_part; i++) {
+			new_colony[i] = new Shooter;
+			new_colony[i]->brain = colony[i]->brain;
+		}
+
+		return new_colony;
+ 
+	}
+
+
+	void tournamentSelectionResample(int k) {
+		if (!fitness_calculated) calculateFitness();
+
+		int size = colony.size();
+		std::vector<Shooter*> new_colony(size);
+		new_colony = elitisSelection(10);
+
+		for (int j = elite_part; j < size; j++) {
+			int rand_idx = random(0, size - 1);
+			Shooter* best = colony[rand_idx];
+
+			for (int i = 0; i < k; i++) {
+				rand_idx = random(0, size - 1);
+				if (colony[rand_idx]->fitness_ > best->fitness_) {
+					best = colony[rand_idx];
+				}
+
+			}
+			new_colony[j] = new Shooter;
+			new_colony[j]->brain = best->brain;
+			new_colony[j]->mutate();
+		}
+
+		for (int i = 0; i < size - 1; i += 2) {
+			new_colony[i]->opponent = new_colony[i + 1];
+			new_colony[i + 1]->opponent = new_colony[i];
+		}
+
+		for (Shooter* s : colony) delete s;
+		colony = new_colony;
+
+	}
+
 
 
 	void resample() {
@@ -143,6 +255,8 @@ public:
 
 	void runSimulationTerminal(int generations,int dt) {
 		createNewCSV("C:\\Users\\alber\\Desktop\\shooters\\fitness.csv");
+		GENERATIONS += generations;
+		loadWeightsFromCSV("C:\\Users\\alber\\Desktop\\shooters\\weights.csv");
 
 		float progress = 0;
 		for (int i = 0; i < generations; i++) {
@@ -152,7 +266,8 @@ public:
 				std::cout << progress / generations * 100 << "%";
 			}
 			runGeneration(dt);
-			assignWeights();
+			calculateFitness();
+			//assignWeights();
 
 			Shooter* best = bestShooter();
 			//std::cout << "\n Best shooter stats : \n";
@@ -170,10 +285,50 @@ public:
 			Stats stats = calculateStatistics();
 			exportToCSV("C:\\Users\\alber\\Desktop\\shooters\\fitness.csv",best->fitness_,avarage_fitness,worst->fitness_,stats.median,stats.q1,stats.q3, stats.std_dev);
 
-			resample();
+			tournamentSelectionResample(5);
+			//resample();
 		}
 		exportToCSV("C:\\Users\\alber\\Desktop\\shooters\\actions_count.csv", actions_count, 5);
+		createNewCSV("C:\\Users\\alber\\Desktop\\shooters\\weights.csv");
+		saveWeightsToCSV("C:\\Users\\alber\\Desktop\\shooters\\weights.csv");
+		std::cout << "\nTOTAL GENERATIONS " << GENERATIONS << "\n";
 		PlaySound(TEXT("C:\\Users\\alber\\Desktop\\shooters\\finish.wav"), NULL, SND_FILENAME | SND_SYNC);
+	}
+
+
+	void loadWeightsFromCSV(const std::string& filename) {
+		std::ifstream file(filename);
+		if (!file.is_open()) {
+			std::cerr << "Nie mozna otworzyc: " << filename << "\n";
+			return;
+		}
+		std::string line;
+		std::getline(file, line);
+		int restored_colony_size = stoi(line);
+		std::getline(file, line);
+		GENERATIONS += stoi(line);
+		std::cout<<"restored colony size: " << restored_colony_size << "\n";
+		std::cout<<"GENERATIONS: " << GENERATIONS<<"\n";
+
+		if (COLONY_SIZE != restored_colony_size) {
+			std::cerr << "Cannot restore weights - colony sizes do not match\n";
+			return;
+		}
+
+		for (auto& s : colony) {
+			if (!std::getline(file, line)) break;
+			s->brain.loadWeightsFromCSV(line);
+		}
+	}
+
+	void saveWeightsToCSV(const std::string& filename) {
+	
+	std::ofstream file(filename);
+	file << COLONY_SIZE << "\n";
+	file << GENERATIONS << "\n";
+		
+		for (auto& s : colony) s->brain.saveWeightsToCSV(filename);
+
 	}
 
 	void exportToCSV(const std::string& filename, double val1, double val2,double val3) {
