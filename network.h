@@ -2,7 +2,8 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
-
+#include <sstream>
+#include <fstream>
 
 double random01() {
 	return (double)rand() / RAND_MAX;
@@ -166,7 +167,34 @@ public:
 
 		return *this;
 	}
+
+	void saveWeightsToCSV(const std::string filename) {
+		std::ofstream file(filename, std::ios::app);
+
+		for (int i = 0; i < 32; i++) file << w1[i] <<",";
+		for (int i = 0; i < 48; i++) file << w2[i] << ",";
+		for (int i = 0; i < 30; i++) file << w3[i] << ",";
+
+		for (int i = 0; i < 8; i++)  file << b1[i] << ",";
+		for (int i = 0; i < 6; i++)  file << b2[i] << ",";
+		for (int i = 0; i < 4; i++)  file << b3[i] << ","; file << b3[4] << "\n";
+	}
 	
+	void loadWeightsFromCSV(const std::string& line) {
+		std::stringstream ss(line);
+		std::string token;
+		auto next = [&]() -> double {
+			std::getline(ss, token, ',');
+			return std::stod(token);
+			};
+		for (int i = 0; i < 32; i++) w1[i] = next();
+		for (int i = 0; i < 48; i++) w2[i] = next();
+		for (int i = 0; i < 30; i++) w3[i] = next();
+		for (int i = 0; i < 8; i++)  b1[i] = next();
+		for (int i = 0; i < 6; i++)  b2[i] = next();
+		for (int i = 0; i < 5; i++)  b3[i] = next();
+	}
+
 };
 
 
