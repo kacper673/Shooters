@@ -109,6 +109,43 @@ pip install pandas matplotlib
 python simple_plots.py
 ```
 
+## Results
+
+The `results/` directory contains representative plots produced from the CSV logs of past
+runs. They illustrate the training dynamics and the behavior the population converges to;
+exact values depend on the fitness function and hyperparameters used for each run, which
+changed across experiments.
+
+### Learning curve
+
+![Learning curve over 2000 generations](results/learning_curve_2000gen.png)
+
+Best, average, and worst fitness over 2000 generations. Best fitness saturates within the
+first few generations, while average fitness rises gradually from negative values to a
+higher plateau as the policy spreads through the population. Worst fitness stays low
+throughout, which is expected: mutation continually produces poorly performing offspring.
+
+### Population statistics
+
+![Detailed fitness statistics](results/fitness_detailed_stats.png)
+
+A more detailed view over 200 generations: best and third quartile, average with ±1σ and
+±2σ bands and the median, population standard deviation (a proxy for genetic diversity),
+and average versus median. Note that diversity grows over time rather than collapsing,
+and that the average drifts above the median, indicating a right-skewed fitness
+distribution (a minority of high performers).
+
+### Emergent policy
+
+![Action distribution, shoot-dominant](results/action_distribution_shoot_dominant.png)
+![Action distribution, balanced](results/action_distribution_balanced.png)
+
+Distribution of chosen actions across a whole run. Under a fitness function that strongly
+rewards hits, the population converges to shooting almost every step (left, shoot ~85%).
+Under different reward shaping the population retains a more balanced mix of moving,
+rotating, and shooting (right). This is the clearest example of the fitness function
+directly shaping emergent behavior.
+
 ## File layout
 
 | File | Purpose |
@@ -118,6 +155,7 @@ python simple_plots.py
 | `shooter.h` | Agent: sensing, action control, fitness, mutation. |
 | `colony.h` | Population, selection/mutation, simulation loop, CSV I/O. |
 | `plot_fitness.py`, `simple_plots.py` | Plotting of the exported statistics. |
+| `results/` | Representative plots from past runs. |
 
 ## Limitations
 
