@@ -157,6 +157,85 @@ directly shaping emergent behavior.
 | `plot_fitness.py`, `simple_plots.py` | Plotting of the exported statistics. |
 | `results/` | Representative plots from past runs. |
 
+## Development history
+
+The project was built incrementally. The main algorithmic changes, in order, were:
+
+1. **Scaffolding.** A fixed-topology network and a `Shooter` shell. Sensing passed the
+   opponent's raw coordinates directly into the network, `shoot()` was empty, and there was
+   no fitness function or population — a single hard-coded duel driven by a global flag.
+2. **Sensing and physics.** Raw coordinates were replaced by egocentric polar features:
+   normalized distance and relative angle to the opponent and to the opponent's bullet
+   (`angleToTarget` wraps to [-1, 1]). This makes the input translation- and
+   rotation-relative, which is easier for a small network to use. Shooting was first
+   modeled as a simulated projectile advanced step by step along the aim direction (up to
+   2250 iterations) with a per-step circle-overlap test. The first fitness function was
+   `score*100 - (3 - health)*80`.
+3. **Population and selection.** A `Colony` of paired duels was introduced with
+   fitness-proportional (roulette-wheel) selection: fitnesses are normalized to
+   probabilities (`assignWeights`), a parent is drawn by cumulative probability
+   (`selectByWeight`), copied, and mutated (`resample`). At the same time the projectile
+   loop was replaced by a closed-form hitscan test (project the opponent onto the aim
+   direction, reject if behind, compare perpendicular distance to the hit radius), removing
+   the inner loop and its discretization misses. Agents were placed in a real 800x800
+   arena.
+4. **Fitness shaping and statistics.** The fitness function was revised several times to
+   reward accuracy and kills and to penalize misses and death, with a constant offset and a
+   clamp at zero. Per-generation median, quartiles, and standard deviation were logged, and
+   action counts were tracked.
+5. **Checkpointing.** Colony weights and a cumulative generation counter are written to and
+   restored from CSV, so long runs can be resumed.
+6. **Elitism and tournament selection.** Under roulette selection the best genome kept being
+   lost: with a mutation rate of 0.1 over roughly 20 parameters at ±0.5 per generation, the
+   offspring of a strong network became effectively random within a few generations, so best
+   fitness repeatedly collapsed back toward the baseline. The fix was elitism (the top
+   fraction is copied unchanged, protected from mutation) combined with tournament selection
+   of size `k` for the rest, and a lower mutation rate. This is the configuration that first
+   produced stable, improving results.
+
+### Methods
+
+The approach is standard fixed-topology neuroevolution: a direct-encoded genome (all
+weights and biases), mutation-only variation (no crossover), and competitive coevolution —
+each agent's fitness is measured against a concrete opponent rather than a fixed target.
+The selection operators (roulette-wheel, tournament, elitism) and the use of population
+standard deviation as a diversity measure are conventional genetic-algorithm techniques.
+
+### Challenges
+
+- **Reward specification.** Early fitness functions produced degenerate policies — agents
+  that never shot, or that over-favored movement after shooting was penalized. The figure
+  names (`doesntshoot`, `promotes_move_punishes_shooting`, `the_same_but_punishes_time2`)
+  record these iterations. The accuracy-and-kill formulation was the response.
+- **Sparse reward and flat fitness landscapes.** Hits are rare early on, so most agents
+  score similarly. Constant offsets and the accuracy term were added partly to avoid an
+  all-equal (or all-zero) fitness distribution, which degrades roulette-wheel selection.
+- **Mutation destroying good solutions.** The most stubborn problem: best fitness would
+  climb and then repeatedly crash back to the baseline. The cause was that every copy of the
+  best network was mutated, so a strong genome could not survive intact from one generation
+  to the next. Elitism (copying the top individuals without mutation) and a reduced mutation
+  rate resolved this and was the point at which the population began to learn consistently.
+- **Selection pressure versus diversity.** Fitness-proportional selection is sensitive to
+  fitness scaling and to negative values, and can converge prematurely. Tournament selection
+  is scale-invariant and its size `k` gives a direct control over selection pressure
+  (small `k` = weak pressure, large `k` = strong). A related failure mode observed was
+  tournament pressure being too weak among the non-elite, because most of them shared a
+  near-identical baseline fitness and were hard to distinguish.
+- **Interpreting the statistics.** Median, quartiles, and standard deviation were logged and
+  plotted specifically to diagnose the runs: a standard deviation collapsing to zero signals
+  premature convergence, while worst fitness pinned at the theoretical minimum indicates
+  selection that is too harsh for the lower half to contribute.
+- **Performance.** The step-by-step projectile simulation was costly across a large
+  population and many generations. Replacing it with a constant-time geometric test was a
+  substantial speedup and also removed missed hits caused by the discrete steps.
+- **Tooling bugs.** The plotting scripts silently mismatched the CSV column order written by
+  the C++ side, so the extra statistics panels (sigma bands, quartiles) were drawn from the
+  wrong columns while the basic curves still looked correct; aligning the column names fixed
+  it.
+- **Memory management.** Networks and shooters are managed with raw `new`/`delete` and a
+  hand-written assignment operator; each generation deletes the previous colony. This works
+  but is error-prone (see Limitations).
+
 ## Limitations
 
 - File paths in `colony.h`, `plot_fitness.py`, and `simple_plots.py` are hardcoded to an
